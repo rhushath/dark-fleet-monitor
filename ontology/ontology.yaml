@@ -1,0 +1,128 @@
+version: '0.1.0'
+name: Dark Fleet Monitor
+# Types: string, integer, float, boolean, timestamp, date, json, point, linestring
+# All object tables receive source_id, pipeline_version, created_at, updated_at.
+objects:
+  Vessel:
+    key: imo
+    properties: {imo: string, status: string}
+  UnresolvedAISIdentity:
+    key: id
+    properties: {id: string, mmsi: string, first_seen: timestamp, last_seen: timestamp, candidate_imo: string, resolution_status: string}
+  VesselIdentity:
+    key: id
+    properties: {id: string, vessel_imo: string, mmsi: string, name: string, flag_code: string, ship_type: integer, valid_from: timestamp, valid_to: timestamp, recorded_at: timestamp}
+  Company:
+    key: id
+    properties: {id: string, name: string, jurisdiction: string, incorporation_date: date}
+  Address:
+    key: id
+    properties: {id: string, normalized_address: string, country: string, location: point}
+  Flag:
+    key: code
+    properties: {code: string, country_name: string}
+  Port:
+    key: id
+    properties: {id: string, name: string, country_code: string, location: point}
+  Anchorage:
+    key: id
+    properties: {id: string, name: string, boundary: json}
+  AISTrack:
+    key: id
+    properties: {id: string, vessel_imo: string, start_time: timestamp, end_time: timestamp, geometry: linestring, raw_dataset_id: string}
+  DarkGap:
+    key: id
+    properties: {id: string, vessel_imo: string, start_time: timestamp, end_time: timestamp, start_position: point, end_position: point, duration_hours: float, displacement_km: float, implied_speed_knots: float, coverage_status: string, coverage_peer_count: integer, rule_version: string, review_status: string}
+  SpoofingEvent:
+    key: id
+    properties: {id: string, vessel_imo: string, event_time: timestamp, location: point, anomaly_type: string, implied_speed_knots: float, rule_version: string, review_status: string}
+  ShipToShipEvent:
+    key: id
+    properties: {id: string, vessel_a_imo: string, vessel_b_imo: string, start_time: timestamp, end_time: timestamp, location: point, duration_hours: float, closest_distance_m: float, distance_to_port_km: float, distance_to_anchorage_km: float, rule_version: string, review_status: string}
+  LoiteringEvent:
+    key: id
+    properties: {id: string, vessel_imo: string, start_time: timestamp, end_time: timestamp, location: point, avg_speed_knots: float, rule_version: string, review_status: string}
+  SARDetection:
+    key: id
+    properties: {id: string, acquisition_time: timestamp, location: point, scene_id: string, vessel_imo: string, match_status: string, match_distance_m: float, detector_version: string}
+  SanctionEntry:
+    key: id
+    properties: {id: string, source_list: string, source_record_id: string, designated_name: string, effective_from: date, effective_to: date, fetched_at: timestamp, source_url: string}
+  Evidence:
+    key: id
+    properties: {id: string, source_name: string, observed_at: timestamp, collected_at: timestamp, source_url: string, file_sha256: string, rule_or_model_version: string, source_record_id: string, description: string}
+  Assessment:
+    key: id
+    properties: {id: string, analyst_id: string, assessment_time: timestamp, verdict: string, confidence: float, notes: string}
+  OwnershipRecord:
+    key: id
+    properties: {id: string, vessel_imo: string, company_id: string, role: string, valid_from: timestamp, valid_to: timestamp, recorded_at: timestamp, evidence_id: string}
+  InvestigationCase:
+    key: id
+    properties: {id: string, title: string, status: string, opened_at: timestamp, opened_by: string}
+  ActionLog:
+    key: id
+    properties: {id: string, action_name: string, actor_id: string, acted_at: timestamp, target_type: string, target_id: string, reason: string, payload: json}
+  WatchlistEntry:
+    key: id
+    properties: {id: string, vessel_imo: string, created_by: string, created_at: timestamp, reason: string}
+  SourceDataset:
+    key: id
+    properties: {id: string, provider: string, source_url: string, downloaded_at: timestamp, checksum_sha256: string, license_notes: string}
+# Link records are typed, timestamped, evidenced and stored in ontology_links.
+# Every link must refer to ontology object types below; referential validation
+# across generic object types is implemented in the API in Phase 5.
+links:
+  - {name: has_identity, from: Vessel, to: VesselIdentity}
+  - {name: resolved_as, from: UnresolvedAISIdentity, to: Vessel}
+  - {name: registered_under, from: VesselIdentity, to: Flag}
+  - {name: owned_by, from: Vessel, to: Company}
+  - {name: managed_by, from: Vessel, to: Company}
+  - {name: operated_by, from: Vessel, to: Company}
+  - {name: located_at, from: Company, to: Address}
+  - {name: vessel_sanctioned_by, from: Vessel, to: SanctionEntry}
+  - {name: company_sanctioned_by, from: Company, to: SanctionEntry}
+  - {name: has_track, from: Vessel, to: AISTrack}
+  - {name: has_dark_gap, from: Vessel, to: DarkGap}
+  - {name: has_spoofing_event, from: Vessel, to: SpoofingEvent}
+  - {name: sts_participant, from: Vessel, to: ShipToShipEvent}
+  - {name: has_loitering_event, from: Vessel, to: LoiteringEvent}
+  - {name: sar_matches, from: SARDetection, to: Vessel}
+  - {name: ownership_assertion, from: OwnershipRecord, to: Company}
+  - {name: supported_by, from: DarkGap, to: Evidence}
+  - {name: supported_by, from: SpoofingEvent, to: Evidence}
+  - {name: supported_by, from: ShipToShipEvent, to: Evidence}
+  - {name: supported_by, from: LoiteringEvent, to: Evidence}
+  - {name: supported_by, from: SARDetection, to: Evidence}
+  - {name: supported_by, from: OwnershipRecord, to: Evidence}
+  - {name: supported_by, from: SanctionEntry, to: Evidence}
+  - {name: assessment_about, from: Assessment, to: Vessel}
+  - {name: assessment_about, from: Assessment, to: DarkGap}
+  - {name: assessment_about, from: Assessment, to: ShipToShipEvent}
+  - {name: assessment_about, from: Assessment, to: SpoofingEvent}
+  - {name: assessment_about, from: Assessment, to: LoiteringEvent}
+  - {name: case_contains, from: InvestigationCase, to: Vessel}
+  - {name: case_contains, from: InvestigationCase, to: DarkGap}
+  - {name: case_contains, from: InvestigationCase, to: ShipToShipEvent}
+actions:
+  ConfirmEvent: {target: [DarkGap, SpoofingEvent, ShipToShipEvent, LoiteringEvent], requires: [actor_id, reason]}
+  DismissEvent: {target: [DarkGap, SpoofingEvent, ShipToShipEvent, LoiteringEvent], requires: [actor_id, reason]}
+  MergeEntities: {target: [Vessel, Company], requires: [actor_id, reason, destination_id]}
+  SplitEntities: {target: [Vessel, Company], requires: [actor_id, reason]}
+  AddOwnershipRecord: {target: [Vessel], requires: [actor_id, reason, company_id, evidence_id, valid_from]}
+  OpenCase: {target: [InvestigationCase], requires: [actor_id, reason]}
+  AddToCase: {target: [InvestigationCase], requires: [actor_id, reason, member_type, member_id]}
+  FlagVessel: {target: [Vessel], requires: [actor_id, reason]}
+functions:
+  riskScore: {input: Vessel, output: {score: float, factors: json}}
+  sanctionsProximity: {input: Vessel, output: {hops: integer, path: json}}
+  identityHistory: {input: Vessel, output: {identities: json}}
+  nearbyVessels: {input: {position: point, time: timestamp, radius_m: float}, output: {vessels: json}}
+thresholds:
+  dark_gap_min_hours: 6
+  dark_gap_peer_radius_km: 25
+  sts_max_distance_m: 500
+  sts_max_speed_knots: 1
+  sts_min_duration_hours: 2
+  spoofing_max_implied_speed_knots: 35
+  loitering_max_speed_knots: 2
